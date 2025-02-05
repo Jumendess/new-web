@@ -67,6 +67,9 @@ async function handleWebhook(req, res) {
           } else {
             console.log("Comentário não é negativo. Não será enviado ao ODA.");
           }
+
+          // Após o envio, nem o comentário nem o resultado da análise são armazenados em lugar algum
+          // Não há necessidade de limpeza ou deleção explícita, pois não estamos mantendo os dados.
         }
       }
     }
