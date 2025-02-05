@@ -1,4 +1,45 @@
 const { sendMessageToODA } = require("../lib/odaClient");
+const axios = require("axios");
+require("dotenv").config(); // Carregar variáveis de ambiente do .env
+
+// Função para analisar o sentimento do comentário com Groq
+async function analisarSentimento(comentario) {
+  try {
+    const groqApiKey = process.env.GROQ_API_KEY; // Chave de API da Groq
+
+    const response = await axios.post(
+      "https://api.groq.com/v1/chat/completions", // Endpoint da Groq
+      {
+        model: "llama-3.3-70b-versatile", // Modelo Groq
+        messages: [
+          {
+            role: "system",
+            content: "Você é um analista de sentimentos."
+          },
+          {
+            role: "user",
+            content: `Analise o seguinte comentário e determine se é negativo: "${comentario}"`
+          }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${groqApiKey}`, // Passando a chave de API
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    const resultado = response.data.choices[0].message.content.trim().toLowerCase();
+    console.log("Resultado da análise de sentimento:", resultado);
+
+    // Retorna se o comentário for negativo
+    return resultado.includes("negativo");
+  } catch (error) {
+    console.error("Erro ao analisar o sentimento:", error);
+    return false;
+  }
+}
 
 async function handleWebhook(req, res) {
   try {
@@ -11,12 +52,22 @@ async function handleWebhook(req, res) {
           const commentMessage = change.value.message; // Extrai a mensagem do comentário
           console.log(`Comentário recebido: ${commentMessage}`);
 
-          // Envia o comentário para o ODA
-          await sendMessageToODA(commentMessage);
+          // Verifica se o comentário é negativo usando a Groq
+          const isNegative = await analisarSentimento(commentMessage);
+
+          if (isNegative) {
+            console.log("Comentário negativo identificado. Enviando ao ODA...");
+            // Envia o comentário para o ODA
+            await sendMessageToODA(commentMessage);
+          } else {
+            console.log("Comentário não é negativo. Não será enviado ao ODA.");
+          }
         }
       }
     }
-    res.status(200).send("Comentário processado e enviado ao ODA");
+
+    res.status(200).send("Comentário processado.");
+
   } catch (error) {
     console.error("Erro ao processar o comentário:", error);
     res.status(500).send("Erro ao processar o comentário");
