@@ -8,7 +8,7 @@ async function analisarSentimento(comentario) {
     const groqApiKey = process.env.GROQ_API_KEY; // Chave de API da Groq
 
     const response = await axios.post(
-      "https://api.groq.com/v1/chat/completions", // Endpoint da Groq
+      "https://api.groq.com/openai/v1/chat/completions", // Endpoint da Groq
       {
         model: "llama-3.3-70b-versatile", // Modelo Groq
         messages: [
