@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@oracle/bots-node-sdk": "^2.7.3",
+    "axios": "^1.7.9",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",
