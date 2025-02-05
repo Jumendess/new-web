@@ -41,7 +41,7 @@ async function sendMessageToMessenger(senderId, message) {
     const accessToken = process.env.FB_ACCESS_TOKEN;  // Puxa o token de acesso do .env
 
     const response = await axios.post(
-      `https://graph.facebook.com/v13.0/me/messages`,
+      `https://graph.facebook.com/v16.0/me/messages`,
       {
         recipient: {
           id: senderId, // Envia a mensagem para o usuário que fez o comentário
