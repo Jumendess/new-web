@@ -43,6 +43,11 @@ async function analisarSentimento(comentario) {
 
 async function handleWebhook(req, res) {
   try {
+    // Verifica se a propriedade 'entry' existe e tem pelo menos um item
+    if (!req.body.entry || !Array.isArray(req.body.entry) || req.body.entry.length === 0) {
+      return res.status(400).send("A propriedade 'entry' está ausente ou malformada.");
+    }
+
     const entry = req.body.entry[0];
 
     // Verifica se há mudanças (comentários) na feed
@@ -67,7 +72,6 @@ async function handleWebhook(req, res) {
     }
 
     res.status(200).send("Comentário processado.");
-
   } catch (error) {
     console.error("Erro ao processar o comentário:", error);
     res.status(500).send("Erro ao processar o comentário");
