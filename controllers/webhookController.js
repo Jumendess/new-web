@@ -21,7 +21,7 @@ async function handleWebhook(req, res) {
           // Resposta do ODA (exemplo simples, pode ser adaptado conforme o retorno do ODA)
           const odaReply = odaResponse || "Desculpe, não entendi sua pergunta. Pode reformular?";
 
-          // Envia a resposta para o Messenger
+          // Envia a resposta para o Messenger com a Tag de Mensagem
           await sendMessageToMessenger(senderId, odaReply);
 
           console.log("Comentário enviado ao ODA e resposta enviada ao Messenger.");
@@ -35,7 +35,7 @@ async function handleWebhook(req, res) {
   }
 }
 
-// Função para enviar uma mensagem no Messenger
+// Função para enviar uma mensagem no Messenger com a Tag
 async function sendMessageToMessenger(senderId, message) {
   try {
     const accessToken = process.env.FB_ACCESS_TOKEN;  // Puxa o token de acesso do .env
@@ -48,6 +48,9 @@ async function sendMessageToMessenger(senderId, message) {
         },
         message: {
           text: message, // O conteúdo da mensagem
+        },
+        metadata: {
+          "#messagePurpose": "POST_PURCHASE_UPDATE",  // Adiciona a Tag de Mensagem
         },
         access_token: accessToken,
       }
