@@ -41,27 +41,6 @@ async function analisarSentimento(comentario) {
   }
 }
 
-// Função para enviar resposta no Messenger
-async function enviarRespostaMessenger(senderId, mensagem) {
-  try {
-    const accessToken = process.env.FB_PAGE_ACCESS_TOKEN; // Seu token de acesso da página do Facebook
-
-    await axios.post(
-      `https://graph.facebook.com/v21.0/me/messages`,
-      {
-        recipient: { id: senderId },
-        message: { text: mensagem },
-      },
-      {
-        params: { access_token: accessToken },
-      }
-    );
-    console.log("Mensagem enviada para o Messenger com sucesso.");
-  } catch (error) {
-    console.error("Erro ao enviar mensagem para o Messenger:", error);
-  }
-}
-
 async function handleWebhook(req, res) {
   try {
     // Verifica se a propriedade 'entry' existe e tem pelo menos um item
@@ -76,7 +55,6 @@ async function handleWebhook(req, res) {
       for (const change of entry.changes) {
         if (change.field === "feed") {
           const commentMessage = change.value.message; // Extrai a mensagem do comentário
-          const senderId = change.value.sender.id; // Extrai o sender ID
           console.log(`Comentário recebido: ${commentMessage}`);
 
           // Verifica se o comentário é negativo usando a Groq
@@ -85,15 +63,13 @@ async function handleWebhook(req, res) {
           if (isNegative) {
             console.log("Comentário negativo identificado. Enviando ao ODA...");
             // Envia o comentário para o ODA
-            const odaResposta = await sendMessageToODA(commentMessage);
-
-            // Depois de enviar para o ODA, envia a resposta para o Messenger
-            await enviarRespostaMessenger(senderId, odaResposta);
+            await sendMessageToODA(commentMessage);
           } else {
             console.log("Comentário não é negativo. Não será enviado ao ODA.");
-            // Você pode responder diretamente no Messenger ou apenas ignorar.
-            await enviarRespostaMessenger(senderId, "Obrigado pelo seu comentário!");
           }
+
+          // Após o envio, nem o comentário nem o resultado da análise são armazenados em lugar algum
+          // Não há necessidade de limpeza ou deleção explícita, pois não estamos mantendo os dados.
         }
       }
     }
