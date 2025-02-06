@@ -58,7 +58,7 @@ async function sendMessageToMessenger(recipientId, message) {
           id: recipientId,
         },
         message: {
-          text: message,
+          text: "Olá! Como posso ajudá-lo?",
         },
       }
     );
