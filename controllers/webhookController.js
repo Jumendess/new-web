@@ -36,41 +36,46 @@ async function analisarSentimento(comentario) {
       }
     );
 
-    const resultado = response.data.choices[0].message.content.trim().toLowerCase();
+    const resultado = response.data.choices?.[0]?.message?.content?.trim().toLowerCase() || "";
     console.log("Resultado da análise de sentimento:", resultado);
 
     // Retorna se o comentário for negativo
     return resultado.includes("negativo");
   } catch (error) {
-    console.error("Erro ao analisar o sentimento:", error);
+    console.error("Erro ao analisar o sentimento:", error.response?.data || error.message);
     return false;
   }
 }
 
 // Função para capturar e exibir a resposta do ODA no console
-// Função para capturar e exibir a resposta do ODA no console
 async function obterRespostaODA(mensagem) {
   try {
     const respostaODA = await sendMessageToODA(mensagem);
+
+    // Verifica se a resposta está no formato esperado
+    if (!respostaODA || typeof respostaODA !== "object") {
+      console.warn("Resposta inesperada do ODA:", respostaODA);
+      return "Erro ao processar resposta do ODA.";
+    }
 
     // Exibe a resposta bruta (raw) no console
     console.log("Resposta bruta do ODA:", JSON.stringify(respostaODA, null, 2));
 
     // Verifica se a resposta contém o campo "text"
-    if (respostaODA && respostaODA.text) {
+    if (respostaODA.text) {
       console.log("Resposta formatada do ODA:", respostaODA.text);
       return respostaODA.text; // Retorna a resposta correta
     } else {
-      console.log("Resposta do ODA não contém 'text':", respostaODA);
+      console.warn("Resposta do ODA não contém 'text':", respostaODA);
       return "Erro ao processar resposta do ODA.";
     }
   } catch (error) {
-    console.error("Erro ao obter resposta do ODA:", error);
+    console.error("Erro ao obter resposta do ODA:", error.response?.data || error.message);
     return "Erro ao se comunicar com o ODA.";
   }
 }
 
-
+// Função para processar o webhook
 async function handleWebhook(req, res) {
   try {
     // Verifica se a propriedade 'entry' existe e tem pelo menos um item
@@ -84,7 +89,13 @@ async function handleWebhook(req, res) {
     if (entry.changes) {
       for (const change of entry.changes) {
         if (change.field === "feed") {
-          const commentMessage = change.value.message; // Extrai a mensagem do comentário
+          const commentMessage = change.value?.message; // Extrai a mensagem do comentário
+
+          if (!commentMessage) {
+            console.warn("Comentário recebido sem mensagem válida:", change.value);
+            continue;
+          }
+
           console.log(`Comentário recebido: ${commentMessage}`);
 
           // Verifica se o comentário é negativo usando a Groq
@@ -92,7 +103,8 @@ async function handleWebhook(req, res) {
 
           if (isNegative) {
             console.log("Comentário negativo identificado. Enviando ao ODA...");
-            await obterRespostaODA(commentMessage); // Captura e exibe a resposta do ODA
+            const respostaODA = await obterRespostaODA(commentMessage);
+            console.log("Resposta final do ODA:", respostaODA);
           } else {
             console.log("Comentário não é negativo. Não será enviado ao ODA.");
           }
@@ -102,7 +114,7 @@ async function handleWebhook(req, res) {
 
     res.status(200).send("Comentário processado.");
   } catch (error) {
-    console.error("Erro ao processar o comentário:", error);
+    console.error("Erro ao processar o comentário:", error.response?.data || error.message);
     res.status(500).send("Erro ao processar o comentário");
   }
 }
