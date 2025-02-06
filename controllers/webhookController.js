@@ -48,7 +48,7 @@ async function analisarSentimento(comentario) {
 
 // Função para enviar a resposta ao Messenger
 async function sendMessageToMessenger(recipientId, message) {
-  const pageAccessToken = process.env.FB_PAGE_ACCESS_TOKEN;
+  const pageAccessToken = process.env.FACEBOOK_ACCESS_TOKEN;
   try {
     const response = await axios.post(
       `https://graph.facebook.com/v12.0/me/messages?access_token=${pageAccessToken}`,
