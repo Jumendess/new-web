@@ -48,14 +48,28 @@ async function analisarSentimento(comentario) {
 }
 
 // Função para capturar e exibir a resposta do ODA no console
+// Função para capturar e exibir a resposta do ODA no console
 async function obterRespostaODA(mensagem) {
   try {
     const respostaODA = await sendMessageToODA(mensagem);
-    console.log("Resposta do ODA:", respostaODA);
+
+    // Exibe a resposta bruta (raw) no console
+    console.log("Resposta bruta do ODA:", JSON.stringify(respostaODA, null, 2));
+
+    // Verifica se a resposta contém o campo "text"
+    if (respostaODA && respostaODA.text) {
+      console.log("Resposta formatada do ODA:", respostaODA.text);
+      return respostaODA.text; // Retorna a resposta correta
+    } else {
+      console.log("Resposta do ODA não contém 'text':", respostaODA);
+      return "Erro ao processar resposta do ODA.";
+    }
   } catch (error) {
     console.error("Erro ao obter resposta do ODA:", error);
+    return "Erro ao se comunicar com o ODA.";
   }
 }
+
 
 async function handleWebhook(req, res) {
   try {
