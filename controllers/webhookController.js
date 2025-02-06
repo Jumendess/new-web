@@ -1,68 +1,84 @@
-const express = require("express");
+const { sendMessageToODA } = require("../lib/odaClient");
 const axios = require("axios");
-require("dotenv").config();
+require("dotenv").config(); // Carregar variáveis de ambiente do .env
 
-const app = express();
-app.use(express.json());
-
-// Função para enviar mensagem ao ODA e retornar a resposta
-async function sendMessageToODA(message) {
+// Função para analisar o sentimento do comentário com Groq
+async function analisarSentimento(comentario) {
   try {
-    const response = await axios.post(process.env.ODA_URL, {
-      text: message,
-    });
+    const groqApiKey = process.env.GROQ_API_KEY; // Chave de API da Groq
 
-    console.log("Resposta do ODA:", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao se comunicar com o ODA:", error);
-    return { text: "Desculpe, não consegui processar sua solicitação." };
-  }
-}
-
-// Função para enviar mensagem ao Messenger
-async function sendMessageToMessenger(recipientId, message) {
-  const pageAccessToken = process.env.FACEBOOK_ACCESS_TOKEN;
-  try {
     const response = await axios.post(
-      `https://graph.facebook.com/v12.0/me/messages?access_token=${pageAccessToken}`,
+      "https://api.groq.com/openai/v1/chat/completions", // Endpoint da Groq
       {
-        messaging_type: "RESPONSE",
-        recipient: { id: recipientId },
-        message: { text: message },
+        model: "llama-3.3-70b-versatile", // Modelo Groq
+        messages: [
+          {
+            role: "system",
+            content: `Você é um analista de sentimentos altamente preciso. Sua tarefa é avaliar comentários de clientes em uma loja de mecânica, onde os produtos e serviços são variados. Seu objetivo é identificar se um comentário é **negativo** em relação aos **produtos, serviços ou a experiência de compra**. Lembre-se de que, ao analisar os comentários, você deve considerar os seguintes critérios:
+
+            - **Negativo**: O comentário deve expressar insatisfação ou uma crítica direta ao produto ou serviço.
+            - **Neutro**: O comentário não expressa claramente uma opinião negativa nem positiva, como um simples elogio ou uma observação neutra.
+            - **Elogios ou Perguntas**: Comentários de agradecimento, elogios ao atendimento ou perguntas sobre produtos ou serviços não são considerados negativos, mesmo que contenham palavras que possam ser mal interpretadas como negativas.
+
+            Não envie comentários que sejam elogios ou perguntas, mesmo que contenham palavras como 'ruim' ou 'pior'. Apenas envie comentários que indicam insatisfação com o produto ou serviço, como 'não gostei', 'não funciona', 'péssima experiência', etc.`
+          },
+          {
+            role: "user",
+            content: `Analise o seguinte comentário e determine se é negativo: "${comentario}"`
+          }
+        ]
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${groqApiKey}`, // Passando a chave de API
+          "Content-Type": "application/json"
+        }
       }
     );
-    console.log("Mensagem enviada para o Messenger:", response.data);
+
+    const resultado = response.data.choices[0].message.content.trim().toLowerCase();
+    console.log("Resultado da análise de sentimento:", resultado);
+
+    // Retorna se o comentário for negativo
+    return resultado.includes("negativo");
   } catch (error) {
-    console.error("Erro ao enviar mensagem para o Messenger:", error);
+    console.error("Erro ao analisar o sentimento:", error);
+    return false;
   }
 }
 
-// Função para analisar sentimento
-async function analisarSentimento(text) {
-  // Simulação de um sistema de análise de sentimento
-  return text.includes("ruim") || text.includes("péssimo") || text.includes("horrível");
+// Função para capturar e exibir a resposta do ODA no console
+async function obterRespostaODA(mensagem) {
+  try {
+    const respostaODA = await sendMessageToODA(mensagem);
+    console.log("Resposta do ODA:", respostaODA);
+  } catch (error) {
+    console.error("Erro ao obter resposta do ODA:", error);
+  }
 }
 
-// Função para processar eventos do webhook
 async function handleWebhook(req, res) {
   try {
+    // Verifica se a propriedade 'entry' existe e tem pelo menos um item
     if (!req.body.entry || !Array.isArray(req.body.entry) || req.body.entry.length === 0) {
       return res.status(400).send("A propriedade 'entry' está ausente ou malformada.");
     }
 
     const entry = req.body.entry[0];
 
-    // Processamento de comentários
+    // Verifica se há mudanças (comentários) na feed
     if (entry.changes) {
       for (const change of entry.changes) {
         if (change.field === "feed") {
-          const commentMessage = change.value.message;
+          const commentMessage = change.value.message; // Extrai a mensagem do comentário
           console.log(`Comentário recebido: ${commentMessage}`);
 
-          if (await analisarSentimento(commentMessage)) {
+          // Verifica se o comentário é negativo usando a Groq
+          const isNegative = await analisarSentimento(commentMessage);
+
+          if (isNegative) {
             console.log("Comentário negativo identificado. Enviando ao ODA...");
-            await sendMessageToODA(commentMessage);
+            await obterRespostaODA(commentMessage); // Captura e exibe a resposta do ODA
           } else {
             console.log("Comentário não é negativo. Não será enviado ao ODA.");
           }
@@ -70,43 +86,11 @@ async function handleWebhook(req, res) {
       }
     }
 
-    // Processamento de mensagens do Messenger
-    if (entry.messaging) {
-      const messagingEvent = entry.messaging[0];
-      const userMessage = messagingEvent.message.text;
-      console.log("Mensagem do usuário recebida no Messenger:", userMessage);
-
-      const odaResponse = await sendMessageToODA(userMessage);
-      console.log("Resposta do ODA recebida:", odaResponse);
-
-      if (odaResponse && odaResponse.text) {
-        await sendMessageToMessenger(messagingEvent.sender.id, odaResponse.text);
-      } else {
-        console.log("Resposta do ODA não foi recebida ou está vazia.");
-      }
-    }
-
-    res.status(200).send("Evento processado com sucesso.");
+    res.status(200).send("Comentário processado.");
   } catch (error) {
-    console.error("Erro ao processar o evento:", error);
-    res.status(500).send("Erro ao processar o evento");
+    console.error("Erro ao processar o comentário:", error);
+    res.status(500).send("Erro ao processar o comentário");
   }
 }
 
-// Configuração das rotas
-app.post("/webhook", handleWebhook);
-app.get("/webhook", (req, res) => {
-  const VERIFY_TOKEN = process.env.FACEBOOK_VERIFY_TOKEN;
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode && token === VERIFY_TOKEN) {
-    res.status(200).send(challenge);
-  } else {
-    res.status(403).send("Falha na verificação do webhook");
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+module.exports = { handleWebhook };
