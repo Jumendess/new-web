@@ -14,7 +14,13 @@ async function analisarSentimento(comentario) {
         messages: [
           {
             role: "system",
-            content: "Você é um analista de sentimentos."
+            content: `Você é um analista de sentimentos altamente preciso. Sua tarefa é avaliar comentários de clientes em uma loja de mecânica, onde os produtos e serviços são variados. Seu objetivo é identificar se um comentário é **negativo** em relação aos **produtos, serviços ou a experiência de compra**. Lembre-se de que, ao analisar os comentários, você deve considerar os seguintes critérios:
+
+            - **Negativo**: O comentário deve expressar insatisfação ou uma crítica direta ao produto ou serviço.
+            - **Neutro**: O comentário não expressa claramente uma opinião negativa nem positiva, como um simples elogio ou uma observação neutra.
+            - **Elogios ou Perguntas**: Comentários de agradecimento, elogios ao atendimento ou perguntas sobre produtos ou serviços não são considerados negativos, mesmo que contenham palavras que possam ser mal interpretadas como negativas.
+
+            Não envie comentários que sejam elogios ou perguntas, mesmo que contenham palavras como 'ruim' ou 'pior'. Apenas envie comentários que indicam insatisfação com o produto ou serviço, como 'não gostei', 'não funciona', 'péssima experiência', etc.`
           },
           {
             role: "user",
@@ -29,6 +35,7 @@ async function analisarSentimento(comentario) {
         }
       }
     );
+
 
     const resultado = response.data.choices[0].message.content.trim().toLowerCase();
     console.log("Resultado da análise de sentimento:", resultado);
