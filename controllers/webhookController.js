@@ -20,7 +20,8 @@ async function analisarSentimento(comentario) {
             - **Neutro**: O comentário não expressa claramente uma opinião negativa nem positiva, como um simples elogio ou uma observação neutra.
             - **Elogios ou Perguntas**: Comentários de agradecimento, elogios ao atendimento ou perguntas sobre produtos ou serviços não são considerados negativos, mesmo que contenham palavras que possam ser mal interpretadas como negativas.
 
-            Não envie comentários que sejam elogios ou perguntas, mesmo que contenham palavras como 'ruim' ou 'pior'. Apenas envie comentários que indicam insatisfação com o produto ou serviço, como 'não gostei', 'não funciona', 'péssima experiência', etc.`},
+            Não envie comentários que sejam elogios ou perguntas, mesmo que contenham palavras como 'ruim' ou 'pior'. Apenas envie comentários que indicam insatisfação com o produto ou serviço, como 'não gostei', 'não funciona', 'péssima experiência', etc.`
+          },
           {
             role: "user",
             content: `Analise o seguinte comentário e determine se é negativo: "${comentario}"`
@@ -35,6 +36,7 @@ async function analisarSentimento(comentario) {
       }
     );
 
+
     const resultado = response.data.choices[0].message.content.trim().toLowerCase();
     console.log("Resultado da análise de sentimento:", resultado);
 
@@ -46,44 +48,6 @@ async function analisarSentimento(comentario) {
   }
 }
 
-// Função para enviar a mensagem para o ODA
-async function sendMessageToODA(message) {
-  try {
-    // Enviar mensagem ao ODA
-    console.log("Enviando mensagem para o ODA:", message);
-    // Supondo que você já tenha uma implementação da função que envia ao ODA.
-    // Por exemplo, via API do ODA ou qualquer outro método.
-    // Retorne a resposta do ODA, por exemplo:
-    return "Resposta do ODA para: " + message;
-  } catch (error) {
-    console.error("Erro ao enviar mensagem para o ODA:", error);
-    return "Erro ao processar sua mensagem.";
-  }
-}
-
-// Função para enviar a resposta ao Messenger
-async function sendMessageToMessenger(recipientId, message) {
-  const pageAccessToken = process.env.FB_PAGE_ACCESS_TOKEN;
-  try {
-    const response = await axios.post(
-      `https://graph.facebook.com/v12.0/me/messages?access_token=${pageAccessToken}`,
-      {
-        messaging_type: "RESPONSE",
-        recipient: {
-          id: recipientId,
-        },
-        message: {
-          text: message,
-        },
-      }
-    );
-    console.log("Mensagem enviada para o Messenger:", response.data);
-  } catch (error) {
-    console.error("Erro ao enviar mensagem para o Messenger:", error);
-  }
-}
-
-// Função para processar os eventos do webhook
 async function handleWebhook(req, res) {
   try {
     // Verifica se a propriedade 'entry' existe e tem pelo menos um item
@@ -93,7 +57,7 @@ async function handleWebhook(req, res) {
 
     const entry = req.body.entry[0];
 
-    // Verifica se é um comentário
+    // Verifica se há mudanças (comentários) na feed
     if (entry.changes) {
       for (const change of entry.changes) {
         if (change.field === "feed") {
@@ -110,30 +74,17 @@ async function handleWebhook(req, res) {
           } else {
             console.log("Comentário não é negativo. Não será enviado ao ODA.");
           }
+
+          // Após o envio, nem o comentário nem o resultado da análise são armazenados em lugar algum
+          // Não há necessidade de limpeza ou deleção explícita, pois não estamos mantendo os dados.
         }
       }
     }
 
-    // Verifica se é uma mensagem do Messenger
-    if (entry.messaging) {
-      const messagingEvent = entry.messaging[0];
-      const userMessage = messagingEvent.message.text; // Mensagem enviada pelo usuário
-      console.log("Mensagem do usuário recebida no Messenger:", userMessage);
-
-      // Envia a mensagem para o ODA
-      const odaResponse = await sendMessageToODA(userMessage);
-
-      // Responde ao Messenger com a resposta do ODA
-      await sendMessageToMessenger(messagingEvent.sender.id, odaResponse);
-
-      res.status(200).send("Mensagem do Messenger processada");
-      return;
-    }
-
-    res.status(200).send("Evento processado com sucesso.");
+    res.status(200).send("Comentário processado.");
   } catch (error) {
-    console.error("Erro ao processar o evento:", error);
-    res.status(500).send("Erro ao processar o evento");
+    console.error("Erro ao processar o comentário:", error);
+    res.status(500).send("Erro ao processar o comentário");
   }
 }
 
